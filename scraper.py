@@ -15,15 +15,17 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import csv, time, os
 
-class scraper:
-    def __init__(self, name, url):
+class Scraper:
+    def __init__(self, name, url, limit):
         self.name = name
         self.url = url
-        with open(f"output/data/{self.name}.csv", "w") as f:
+        with open(f"src/output/data/{self.name}.csv", "w") as f:
             f.write("")
         self.browser = self.open_browser()
         self.wait = WebDriverWait(self.browser, 15)
+        self.limit = limit
         self.extract()
+        self.browser.quit()
 
 
     def open_browser(self):
@@ -32,9 +34,10 @@ class scraper:
         return browser
     
     def extract(self):
-        extract_cols = ['평점', '구매자아이디', '구매날짜', '구매한옵션', '리뷰내용']
-        DF = pd.DataFrame([], columns=extract_cols)
-        page_df = pd.DataFrame([], columns=extract_cols)
+        self.extract_cols = ['평점', '구매자아이디', '구매날짜', '구매한옵션', '리뷰내용']
+        self.DF = pd.DataFrame([], columns=self.extract_cols)
+        self.DF.index.name = '번호'
+        self.page_df = pd.DataFrame([], columns=self.extract_cols)
         try:
             review_tab_class = By.CLASS_NAME, '_11xjFby3Le'
             self.wait.until(EC.presence_of_element_located(review_tab_class))
@@ -62,9 +65,37 @@ class scraper:
             return
         review_count = self.browser.find_element_by_class_name('q9fRhG-eTG').get_attribute('innerText').replace(',','')
         review_count = int(review_count)
-        while review_count > len(DF.index):
-            html_1 = self.browser.execute_script('return document.body.outerHTML;')
-            soup_1 = BeautifulSoup(html_1, 'html.parser')
 
+        if self.limit >= review_count:
+            self.review_scrape(review_count)
+
+        else:
+            self.review_scrape(self.limit)
         return
             
+    def review_scrape(self, limit):
+        while limit > len(self.DF.index):
+            html_1 = self.browser.execute_script('return document.body.outerHTML;')
+            soup_1 = BeautifulSoup(html_1, 'html.parser')
+            container = soup_1.select('._1YShY6EQ56')
+            for parts in container:
+                rate = parts.find('em', {'class': '_15NU42F3kT'}).text
+                info = parts.select('._3QDEeS6NLn')
+                if len(info) == 4:
+                    option = info[2].text.replace(',','')
+                else:
+                    option = "None"
+                username = info[0].text
+                date = info[1].text
+                description = info[-1].text.replace(',',' ').replace('~',' ').replace('\n',' ')
+                row = [rate, username, date, option, description]
+                row_df = pd.DataFrame([row], columns=self.extract_cols)
+                self.page_df = self.page_df.append(row_df, ignore_index=True)
+            self.DF = self.DF.append(self.page_df, ignore_index=True)
+            self.DF.to_csv(f"src/output/data/{self.name}.csv", encoding='utf-8')
+
+            if limit == len(self.DF.index):
+                break
+            next_btn_xpath = '//a[contains(@class,\"UWN4IvaQza\") and contains(@aria-current,\"true\")]/following-sibling::a'
+            next_btn = self.browser.find_element_by_xpath(next_btn_xpath)
+            next_btn.click()
