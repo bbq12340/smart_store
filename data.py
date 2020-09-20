@@ -3,13 +3,14 @@ import pandas as pd
 from scraper import Scraper
 
 class Reader:
-    def __init__(self, limit):
+    def __init__(self, filename, limit=None):
+        self.filename = filename
         self.limit = limit
         self.read_file()
         self.extract_file()
 
     def read_file(self):
-        request_df = pd.read_csv('src/input/request.txt', names=['names', 'link'], sep='*')
+        request_df = pd.read_csv(self.filename, names=['names', 'link'], sep='*')
         request_df = request_df.set_index('names')
         request_df.index = request_df.index + request_df.groupby(level=0).cumcount().astype(str).replace('0','')
         request_df.to_csv('src/output/wd.csv', encoding='utf-8', header=False)
