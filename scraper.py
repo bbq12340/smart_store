@@ -16,24 +16,20 @@ import pandas as pd
 import csv, time, os
 
 class Scraper:
-    def __init__(self, name, url, limit):
+    def __init__(self, browser, name, url, limit=None, items=0, delay=0):
         self.name = name
         self.url = url
         with open(f"src/output/data/{self.name}.csv", "w") as f:
             f.write("")
-        self.browser = self.open_browser()
+        self.browser = browser
         self.wait = WebDriverWait(self.browser, 15)
         self.limit = limit
+        self.items = items
+        self.delay = delay
         self.extract()
-        self.browser.quit()
 
-
-    def open_browser(self):
-        browser = webdriver.Chrome(ChromeDriverManager().install())
-        browser.get(self.url)
-        return browser
-    
     def extract(self):
+        self.browser.get(self.url)
         self.extract_cols = ['평점', '구매자아이디', '구매날짜', '구매한옵션', '리뷰내용']
         self.DF = pd.DataFrame([], columns=self.extract_cols)
         self.DF.index.name = '번호'
@@ -63,10 +59,17 @@ class Scraper:
                 f.write(f"{self.url}\n")
             os.remove(f"output/data/{self.name}.csv")
             return
-        review_count = self.browser.find_element_by_class_name('q9fRhG-eTG').get_attribute('innerText').replace(',','')
+        try:
+            review_count = self.browser.find_element_by_class_name('q9fRhG-eTG').get_attribute('innerText').replace(',','')
+        except NoSuchElementException:
+            review_count = self.browser.find_element_by_class_name('_3HJHJjSrNK').get_attribute('innerText').replace(',','')
         review_count = int(review_count)
 
-        if self.limit >= review_count:
+        if self.limit == None:
+            print("none!")
+            self.review_scrape(review_count)
+
+        elif self.limit >= review_count:
             self.review_scrape(review_count)
 
         else:
@@ -91,6 +94,7 @@ class Scraper:
                 row = [rate, username, date, option, description]
                 row_df = pd.DataFrame([row], columns=self.extract_cols)
                 self.page_df = self.page_df.append(row_df, ignore_index=True)
+            temp_length = len(self.DF.index)
             self.DF = self.DF.append(self.page_df, ignore_index=True)
             self.DF.to_csv(f"src/output/data/{self.name}.csv", encoding='utf-8')
 
