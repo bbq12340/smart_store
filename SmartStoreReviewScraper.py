@@ -68,12 +68,12 @@ class SmartStoreReviewScraper:
             data = {
                     '평점': review['reviewScore'], #평점
                     '아이디': review['writerMemberId'], #아이디
-                    '구매옵션': review['productOptionContent'].replace(',',' '), #구매옵션
+                    '시간': review['createDate'].replace('T', ' ').split('.')[0], #시간   
                     '리뷰내용': review['reviewContent'].replace(',',' ').replace('~',' ').replace('\n',' ') #리뷰내용
                 }
             if 'productOptionContent' in review:
-                data['시간'] = review['createDate'].replace('T', ' ').split('.')[0], #시간            
+                data['구매옵션'] = review['productOptionContent'].replace(',',' ') #구매옵션            
             else:
-                data['시간'] = None
+                data['구매옵션'] = None
             REVIEWS.append(data)
         return REVIEWS
